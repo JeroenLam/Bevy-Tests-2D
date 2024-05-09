@@ -1,11 +1,11 @@
+mod ecs_example;
+
 use bevy::prelude::*;
+use ecs_example::HelloPlugin;
 
 fn main() {
     App::new()
-        .add_systems(Update, hello_world_system)
+        .add_plugins((DefaultPlugins, HelloPlugin))
         .run();
 }
 
-fn hello_world_system() {
-    println!("hello world");
- }
