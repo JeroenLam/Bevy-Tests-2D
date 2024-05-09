@@ -2,12 +2,20 @@ mod camera;
 mod debug;
 mod movement;
 mod spaceship;
+mod astroids;
+mod asset_loader;
+mod collission_detection;
+mod despawn;
 
 use bevy::prelude::*;
 use camera::CameraPlugin;
 use debug::DebugPlugin;
 use movement::MovementPlugin;
 use spaceship::SpaceshipPlugin;
+use astroids::AsteroidPlugin;
+use asset_loader::AssetLoaderPlugin;
+use collission_detection::CollisionDetectionPlugin;
+use despawn::DespawnPlugin;
 
 fn main() {
     App::new()
@@ -17,11 +25,19 @@ fn main() {
             color: Color::rgb(1.0, 1.0, 1.0),
             brightness: 800.0,
         })
-        .add_plugins(DefaultPlugins)
+        .add_plugins((
+            DefaultPlugins, 
+        ))
         // User defined plugins.
-        .add_plugins(MovementPlugin)
-        .add_plugins(DebugPlugin)
-        .add_plugins(SpaceshipPlugin)
-        .add_plugins(CameraPlugin)
+        .add_plugins((
+            AssetLoaderPlugin,
+            MovementPlugin,
+            DebugPlugin,
+            SpaceshipPlugin,
+            CollisionDetectionPlugin,
+            AsteroidPlugin,
+            CameraPlugin,
+            DespawnPlugin,
+        ))
         .run();
 }
