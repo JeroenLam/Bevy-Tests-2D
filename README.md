@@ -1,6 +1,8 @@
 # Bevy-Tests-2D
 A repository containins some first attempts at making a game in Bevy
 
+This repo is based on [the official website](https://bevyengine.org/learn/quick-start/getting-started/)
+
 ## Compiling and run the game (development)
 Install rust and run the command:
 ```bash
