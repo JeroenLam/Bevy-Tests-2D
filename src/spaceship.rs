@@ -1,22 +1,30 @@
 use bevy::prelude::*;
 
 use crate::{
-    asset_loader::SceneAssets, collission_detection::{Collider, CollisionDamage}, health::Health, movement::{
+    asset_loader::SceneAssets, 
+    collission_detection::{
+        Collider, 
+        CollisionDamage
+    }, 
+    health::Health, 
+    movement::{
         Acceleration, 
         MovingObjectBundle, 
         Velocity
-    }, schedule::InGameSet, state::GameState
+    }, 
+    schedule::InGameSet, 
+    state::GameState
 };
 
 const STARTING_TRANSLATION: Vec3 = Vec3::new(0.0, 0.0, -20.0);
-const SPACESHIP_RADIUS: f32 = 5.0;
+const SPACESHIP_RADIUS: f32 = 3.0;
 const SPACESHIP_SPEED: f32 = 25.0;
 const SPACESHIP_ROTATION_SPEED: f32 = 2.5;
 const SPACESHIP_ROLL_SPEED: f32 = 2.5;
 const SPACESHIP_HEALTH: f32 = 100.0;
 const SPACESHIP_COLLISION_DAMAGE: f32 = 100.0;
 const MISSILE_SPEED: f32 = 50.0;
-const MISSILE_FORWARD_SPAWN_SCALAR: f32 = 7.5;
+const MISSILE_FORWARD_SPAWN_SCALAR: f32 = 5.0;
 const MISSILE_RADIUS: f32 = 1.0;
 const MISSILE_HEALTH: f32 = 1.0;
 const MISSILE_COLLISION_DAMAGE: f32 = 5.0;
@@ -148,9 +156,11 @@ fn spaceship_weapon_controls(
                     collider: Collider::new(MISSILE_RADIUS),
                     model: SceneBundle {
                         scene: scene_assets.missiles.clone(),
-                        transform: Transform::from_translation(
-                            transform.translation + -transform.forward() * MISSILE_FORWARD_SPAWN_SCALAR
-                        ),
+                        transform: Transform {
+                            translation: transform.translation + -transform.forward() * MISSILE_FORWARD_SPAWN_SCALAR,
+                            rotation: transform.rotation,
+                            scale: Vec3::new(0.3, 0.3, 0.3),
+                        },
                         ..default()
                     },
                 },
