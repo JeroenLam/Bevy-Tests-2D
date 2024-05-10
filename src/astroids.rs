@@ -14,16 +14,15 @@ use crate::{
         MovingObjectBundle, 
         Velocity
     }, 
-    schedule::InGameSet
+    schedule::InGameSet, spaceship::Spaceship
 };
 
-const VELOCITY_SCALER: f32 = 5.0;
-const ACCELERATION_SCALER: f32 = 1.0;
-const SPAWN_RANGE_X: Range<f32> = -25.0..25.0;
-const SPAWN_RANGE_Z: Range<f32> = 0.0..25.0;
+const VELOCITY_RANGE: Range<f32> = 4.0..6.0;
+const ACCELERATION_RANGE: Range<f32> = 0.9..1.1;
+const SPAWN_RANGE: Range<f32> = 40.0..80.0;
 const SPAWN_TIME_SECONDS: f32 = 1.0;
 const ROTATE_SPEED: f32 = 2.5;
-const RADIUS: f32 = 2.5;
+const RADIUS: f32 = 5.0;
 const HEALTH: f32 = 80.0;
 const COLLISION_DAMAGE: f32 = 35.0;
 
@@ -33,6 +32,18 @@ pub struct Asteroid;
 #[derive(Resource, Debug)]
 pub struct SpawnTimer {
     timer: Timer,
+}
+
+#[derive(Event, Debug)]
+pub struct AsteroidSpawnEvent {
+    pub asteroid_trans: Vec3,
+    pub ship_trans: Vec3,
+}
+
+impl AsteroidSpawnEvent {
+    pub fn new(asteroid_trans: Vec3, ship_trans: Vec3) -> Self {
+        Self { asteroid_trans, ship_trans }
+    }
 }
 
 pub struct AsteroidPlugin;
@@ -45,15 +56,16 @@ impl Plugin for AsteroidPlugin {
         app.insert_resource(SpawnTimer {
             timer: Timer::from_seconds(SPAWN_TIME_SECONDS, TimerMode::Repeating),
 
-        });
-        app.add_systems(
+        })
+        .add_systems(
             Update,
              (
                 spawn_astroids, 
                 rotate_asteroids
             )
             .in_set(InGameSet::EntityUpdates)
-        );
+        )
+        .add_event::<AsteroidSpawnEvent>();
     }
 }
 
@@ -61,21 +73,20 @@ fn spawn_astroids(
     mut commands: Commands, 
     mut spawn_timer: ResMut<SpawnTimer>, 
     time: Res<Time>, 
-    scene_assets: Res<SceneAssets>
+    scene_assets: Res<SceneAssets>,
+    query: Query<&Transform, With<Spaceship>>,
+    mut asteroid_spawn_event_writer: EventWriter<AsteroidSpawnEvent>,
 ) {
     spawn_timer.timer.tick(time.delta());
     if !spawn_timer.timer.just_finished() {
         return;
     }
 
+    let Ok(transform_spaceship) = query.get_single() else {
+        return;
+    };
+
     let mut rng = rand::thread_rng();
-
-    let translation = Vec3::new(
-        rng.gen_range(SPAWN_RANGE_X),
-        0., 
-        rng.gen_range(SPAWN_RANGE_Z),
-    );
-
     let mut random_unit_vector = 
         || Vec3::new(
             rng.gen_range(-1.0..1.0), 
@@ -83,9 +94,12 @@ fn spawn_astroids(
             rng.gen_range(-1.0..1.0)
         ).normalize_or_zero();
 
-    let velocity = random_unit_vector() * VELOCITY_SCALER;
-    let acceleration = random_unit_vector() * ACCELERATION_SCALER;
+    let mut rng = rand::thread_rng();
+    let translation = random_unit_vector() * rng.gen_range(SPAWN_RANGE) + transform_spaceship.translation;
+    let velocity = random_unit_vector() * rng.gen_range(VELOCITY_RANGE);
+    let acceleration = random_unit_vector() * rng.gen_range(ACCELERATION_RANGE);
 
+    asteroid_spawn_event_writer.send(AsteroidSpawnEvent::new(translation, transform_spaceship.translation));
     commands.spawn(
         (
             MovingObjectBundle {

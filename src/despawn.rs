@@ -1,4 +1,4 @@
-use bevy::{ecs::entity, prelude::*};
+use bevy::prelude::*;
 
 use crate::{health::Health, schedule::InGameSet, state::GameState};
 
