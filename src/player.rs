@@ -1,96 +1,26 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
+
+use crate::asset_loader::{AnimationType, PlayerAnimationAssets};
+use crate::sprite_animations::{AnimationIndices, AnimationTimer};
 
 const MOVE_SPEED: f32 = 100.;
+const FALL_SPEED: f32 = 98.0;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerAnimationAssets>()
-            .add_systems(Startup, (load_assets, setup_spawn_player).chain())
-            .add_systems(Update, animate_sprite)
+        app.add_systems(Startup, setup_spawn_player)
             .add_systems(Update, move_player)
             .add_systems(Update, change_player_animation)
+            .add_systems(Update, player_jump)
+            .add_systems(Update, player_fall)
             ;
     }
 }
 
 #[derive(Component)]
 struct Player;
-
-#[derive(Resource)]
-struct PlayerAnimationAssets {
-    map: HashMap<AnimationType, (Handle<TextureAtlasLayout>, Handle<Image>, AnimationIndices)>,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq)]
-enum AnimationType {
-    Run,
-    Idle,
-}
-
-fn load_assets(
-    mut player_animation_assets: ResMut<PlayerAnimationAssets>, 
-    asset_server: Res<AssetServer>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>
-) {
-    // Load Player Idle animations
-    let idle_texture = asset_server.load("Main Characters/Mask Dude/Idle (32x32).png");
-    let idle_atlas_layout = TextureAtlasLayout::from_grid(
-            Vec2::splat(32.),
-            11, 
-            1, 
-            None, 
-            None
-        );
-    player_animation_assets.map.insert(AnimationType::Idle, (
-            texture_atlas_layouts.add(idle_atlas_layout), 
-            idle_texture, 
-            AnimationIndices::new(0,10)
-        ));
-
-    // Load Player Run animations
-    let run_texture = asset_server.load("Main Characters/Mask Dude/Run (32x32).png");
-    let run_atlas_layout = TextureAtlasLayout::from_grid(
-            Vec2::splat(32.),
-            12, 
-            1, 
-            None, 
-            None
-        );
-    player_animation_assets.map.insert(AnimationType::Run, (
-            texture_atlas_layouts.add(run_atlas_layout), 
-            run_texture, 
-            AnimationIndices::new(0,11)
-        ));
-}
-
-impl FromWorld for PlayerAnimationAssets {
-    fn from_world(world: &mut World) -> Self {
-        let _ = world;
-        let map = PlayerAnimationAssets {map: HashMap::new()};
-        map
-    }
-    
-}
-
-
-#[derive(Component, Clone, Copy)]
-struct AnimationIndices {
-    first: usize,
-    last: usize,
-}
-
-impl AnimationIndices {
-    fn new(first: usize, last: usize) -> Self {
-        Self { first, last }
-    }
-}
-
-
-#[derive(Component, Deref, DerefMut)]
-struct AnimationTimer(Timer);
 
 
 fn setup_spawn_player(
@@ -122,40 +52,32 @@ fn setup_spawn_player(
     ));
 }
 
-fn animate_sprite(
-    time: Res<Time>,
-    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut TextureAtlas)>,
-) {
-    for (indices, mut timer, mut atlas) in &mut query {
-        timer.tick(time.delta());
-        if timer.just_finished() {
-            atlas.index = if atlas.index == indices.last {
-                indices.first
-            } else {
-                atlas.index + 1
-            };
-        }
-    }
-}
+
 
 fn move_player(
-    mut player: Query<&mut Transform, With<Player>>,
+    mut player: Query<(Entity, &mut Transform), With<Player>>,
     time: Res<Time>,
     input: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands, 
 ) {
-    let mut player = player.single_mut();
+    let Ok((player, mut transform)) = player.get_single_mut() else {return;};
 
     let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
     let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
-    // let up    = input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
-    // let down  = input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
-
+    
     if left_hold && right_hold {
     } else if left_hold {
-        player.translation.x -= MOVE_SPEED * time.delta_seconds();
+        transform.translation.x -= MOVE_SPEED * time.delta_seconds();
     } else if right_hold {
-        player.translation.x += MOVE_SPEED * time.delta_seconds();
+        transform.translation.x += MOVE_SPEED * time.delta_seconds();
     }
+
+    let up_start    = input.any_just_pressed([KeyCode::KeyW, KeyCode::ArrowUp, KeyCode::Space]);
+    // let down  = input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+    if up_start {
+        commands.entity(player).insert(Jump(100.));
+    }
+
 }
 
 
@@ -218,6 +140,7 @@ fn change_player_animation(
         };
     }
 
+    // Flip sprite if needed
     if right_start {
         sprite.flip_x = false;
     } else if left_start {
@@ -226,5 +149,36 @@ fn change_player_animation(
         sprite.flip_x = false;
     } else if right_end && left_hold {
         sprite.flip_x = true;
+    }
+}
+
+
+#[derive(Component)]
+struct Jump(f32);
+
+fn player_jump(
+    mut commands: Commands, 
+    time: Res<Time>,
+    mut player: Query<(Entity, &mut Transform, &mut Jump), With<Player>>,
+) {
+    let Ok((player, mut transform, mut jump)) = player.get_single_mut() else {return;};
+    let jump_power = (time.delta_seconds() * FALL_SPEED * 2.).min(jump.0);
+    jump.0 -= jump_power;
+    transform.translation.y += jump_power; 
+    if jump.0 == 0. {
+        commands.entity(player).remove::<Jump>();
+    }
+}
+
+fn player_fall(
+    mut player: Query<&mut Transform, (With<Player>, Without<Jump>)>,
+    time: Res<Time>,
+) {
+    let Ok(mut player) = player.get_single_mut() else {return;};
+    if player.translation.y > 0.0 {
+        player.translation.y -= time.delta_seconds() * FALL_SPEED;
+        if player.translation.y < 0.0 {
+            player.translation.y = 0.0;
+        }
     }
 }
