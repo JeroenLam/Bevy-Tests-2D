@@ -9,7 +9,7 @@ impl Plugin for SpriteAnimationPlugin {
 }
 
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct AnimationIndices {
     pub first: usize,
     pub last: usize,
@@ -22,7 +22,7 @@ impl AnimationIndices {
 }
 
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Debug, Deref, DerefMut)]
 pub struct AnimationTimer(pub Timer);
 
 

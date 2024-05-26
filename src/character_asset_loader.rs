@@ -3,9 +3,9 @@ use std::collections::HashMap;
 
 use crate::sprite_animations::AnimationIndices;
 
-pub struct AssetLoaderPlugin;
+pub struct CharacterAssetLoaderPlugin;
 
-impl Plugin for AssetLoaderPlugin {
+impl Plugin for CharacterAssetLoaderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerAnimationAssets>()
             .add_systems(Startup, load_assets)
@@ -15,7 +15,7 @@ impl Plugin for AssetLoaderPlugin {
 
 
 
-#[derive(Resource)]
+#[derive(Resource, Debug)]
 pub struct PlayerAnimationAssets {
     pub map: HashMap<AnimationType, (Handle<TextureAtlasLayout>, Handle<Image>, AnimationIndices)>,
 }

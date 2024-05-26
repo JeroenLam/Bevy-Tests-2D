@@ -1,20 +1,25 @@
 mod camera;
 mod player;
-mod asset_loader;
+mod character_asset_loader;
 mod sprite_animations;
+mod collision;
+mod terain_asset_loader;
+mod platform;
 
-use asset_loader::AssetLoaderPlugin;
+use character_asset_loader::CharacterAssetLoaderPlugin;
 use bevy::prelude::*;
 use camera::OwnCameraPlugin;
+use collision::CollisionPlugin;
+use platform::PlatformPlugin;
 use player::PlayerPlugin;
-use sprite_animations::SpriteAnimationPlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(OwnCameraPlugin)
         .add_plugins(PlayerPlugin)
-        .add_plugins(AssetLoaderPlugin)
-        .add_plugins(SpriteAnimationPlugin)
+        .add_plugins(CharacterAssetLoaderPlugin)
+        .add_plugins(CollisionPlugin)
+        .add_plugins(PlatformPlugin)
         .run();
 }
