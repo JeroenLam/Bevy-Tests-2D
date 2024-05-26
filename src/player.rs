@@ -36,7 +36,7 @@ fn load_assets(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>
 ) {
     // Load Player Idle animations
-    let idle_texture = asset_server.load("Main Characters/Mask Dude/Run (32x32).png");
+    let idle_texture = asset_server.load("Main Characters/Mask Dude/Idle (32x32).png");
     let idle_atlas_layout = TextureAtlasLayout::from_grid(
             Vec2::splat(32.),
             11, 
@@ -51,7 +51,7 @@ fn load_assets(
         ));
 
     // Load Player Run animations
-    let run_texture = asset_server.load("Main Characters/Mask Dude/Idle (32x32).png");
+    let run_texture = asset_server.load("Main Characters/Mask Dude/Run (32x32).png");
     let run_atlas_layout = TextureAtlasLayout::from_grid(
             Vec2::splat(32.),
             12, 
@@ -145,14 +145,15 @@ fn move_player(
 ) {
     let mut player = player.single_mut();
 
-    let left  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
     // let up    = input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
     // let down  = input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
 
-    if left {
+    if left_hold && right_hold {
+    } else if left_hold {
         player.translation.x -= MOVE_SPEED * time.delta_seconds();
-    } else if right {
+    } else if right_hold {
         player.translation.x += MOVE_SPEED * time.delta_seconds();
     }
 }
@@ -170,8 +171,15 @@ fn change_player_animation(
         mut sprite,
     ) = player_q.single_mut();
 
+    let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let left_start  = input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right_start = input.any_just_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let left_end  = input.any_just_released([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right_end = input.any_just_released([KeyCode::KeyD, KeyCode::ArrowRight]);
+
     // If any move keys pressed, set run sprite
-    if input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft, KeyCode::KeyD, KeyCode::ArrowRight]) {
+    if left_start || right_start {
         let Some((
             layout_handle_new, 
             texture_new, 
@@ -191,8 +199,7 @@ fn change_player_animation(
     }
 
     // If no move keys pressed, set idle animation
-    if input.any_just_released([KeyCode::KeyA, KeyCode::ArrowLeft, KeyCode::KeyD, KeyCode::ArrowRight])
-      && !input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft, KeyCode::KeyD, KeyCode::ArrowRight]) {
+    if (left_end && !right_hold) || (right_end && !left_hold) {
         let Some((
             layout_handle_new, 
             texture_new, 
@@ -211,14 +218,13 @@ fn change_player_animation(
         };
     }
 
-    if input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
-        sprite.flip_x = true;
-    } else if input.any_just_pressed([KeyCode::KeyD, KeyCode::ArrowRight])
-               && !input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
+    if right_start {
         sprite.flip_x = false;
-    } else if input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft])
-        && !input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft])
-        && input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
-        sprite.flip_x = false
+    } else if left_start {
+        sprite.flip_x = true;
+    } else if left_end && right_hold {
+        sprite.flip_x = false;
+    } else if right_end && left_hold {
+        sprite.flip_x = true;
     }
 }
