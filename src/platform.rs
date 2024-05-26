@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    collision::HitBox, 
-    sprite_animations::AnimationTimer, 
-    terain_asset_loader::{
+    collision::HitBox, terain_asset_loader::{
         TerainAssetLoaderPlugin, 
         TerainAssets, 
         TerainType
@@ -22,35 +20,45 @@ impl Plugin for PlatformPlugin {
 
 fn spawn_map(
     mut commands: Commands,
-    // assets: Res<TerainAssets>,
+    assets: Res<TerainAssets>,
 ) {
-    // let Some((
-    //     layout_handle, 
-    //     texture, 
-    //     animation_indices
-    //     )) = assets.map.get(&TerainType::Block)
-    //         else { 
-    //             error!("Failed to find Block Texture: Idle"); 
-    //             return; 
-    //         };
+    let Some((
+        layout_handle, 
+        texture, 
+        _animation_indices
+        )) = assets.map.get(&TerainType::Block)
+            else { 
+                error!("Failed to find Block Texture: Idle"); 
+                return; 
+            };
 
     commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_translation(Vec3::NEG_Y * 16.),
-            sprite: Sprite { custom_size: Some(Vec2::new(200., 5.)),
+        SpriteSheetBundle {
+            transform: Transform::from_translation(Vec3::new(0.0, -48.0, 0.0)),
+            sprite: Sprite { custom_size: Some(Vec2::new(320., 32.)),
                 color: Color::WHITE,
                 ..Default::default()
             },
+            texture: texture.clone(),
+            atlas: TextureAtlas {
+                layout: layout_handle.clone(),
+                index: 0,
+            },
             ..Default::default()
         },
-        HitBox(Vec2::new(200., 5.)),
+        HitBox(Vec2::new(320., 32.)),
     ));
     commands.spawn((
-        SpriteBundle {
+        SpriteSheetBundle {
             transform: Transform::from_translation(Vec3::new(100., 25., 0.)),
             sprite: Sprite { custom_size: Some(Vec2::new(32., 32.)),
                 color: Color::WHITE,
                 ..Default::default()
+            },
+            texture: texture.clone(),
+            atlas: TextureAtlas {
+                layout: layout_handle.clone(),
+                index: 0,
             },
             ..Default::default()
         },

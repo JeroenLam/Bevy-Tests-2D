@@ -8,7 +8,7 @@ pub struct CharacterAssetLoaderPlugin;
 impl Plugin for CharacterAssetLoaderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerAnimationAssets>()
-            .add_systems(Startup, load_assets)
+            .add_systems(PreStartup, load_assets)
             ;
     }
 }
@@ -140,6 +140,8 @@ fn load_assets(
             run_texture, 
             AnimationIndices::new(0, 6)
         ));
+
+        error!("Loaded all player assets!")
 }
 
 impl FromWorld for PlayerAnimationAssets {

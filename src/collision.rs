@@ -40,7 +40,7 @@ pub fn ground_detection(
     mut player: Query<(&Transform, &mut Grounded), With<Player>>,
     mut last: Local<Transform>,
 ) {
-    let (pos, mut on_ground) = player.single_mut();
+    let Ok((pos, mut on_ground)) = player.get_single_mut() else {return};
     let current = if pos.translation.y == last.translation.y {
         true
     } else {

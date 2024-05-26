@@ -35,7 +35,7 @@ fn setup_spawn_player(
         animation_indices
         )) = animations.map.get(&AnimationType::Idle)
             else { 
-                error!("Failed to find animation: Idle"); 
+                error!("Failed to find animation Idle durring startup"); 
                 return; 
             };
 
@@ -73,9 +73,9 @@ fn move_player(
     let movement = if left_hold && right_hold {
         return;
     } else if left_hold {
-        -MOVE_SPEED * time.delta_seconds() * (0.5 + (grounded.0 as u16) as f32)
+        -MOVE_SPEED * time.delta_seconds() * (0.8 + (grounded.0 as u16) as f32)
     } else if right_hold {
-        MOVE_SPEED * time.delta_seconds() * (0.5 + (grounded.0 as u16) as f32)
+        MOVE_SPEED * time.delta_seconds() * (0.8 + (grounded.0 as u16) as f32)
     } else {
         return;
     };
@@ -102,12 +102,12 @@ fn change_player_animation(
     input: Res<ButtonInput<KeyCode>>,
     animations: Res<PlayerAnimationAssets>,
 ) {
-    let (
+    let Ok((
         mut texture,
         mut animation_indices,
         mut texture_atlas,
         mut sprite,
-    ) = player_q.single_mut();
+    )) = player_q.get_single_mut() else {return;};
 
     let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
     let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
@@ -142,7 +142,7 @@ fn change_player_animation(
         } else if (left_end && !right_hold) || (right_end && !left_hold) {
             AnimationType::Idle
         } else {
-            AnimationType::Idle
+            return;
         };
 
     let Some((
@@ -151,7 +151,7 @@ fn change_player_animation(
         animation_indices_new
         )) = animations.map.get(&animation_type)
             else { 
-                error!("Failed to find animation: Idle"); 
+                error!("Failed to find animation durring update: {:?}", animation_type); 
                 return; 
             };
 

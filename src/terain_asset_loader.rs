@@ -8,7 +8,7 @@ pub struct TerainAssetLoaderPlugin;
 impl Plugin for TerainAssetLoaderPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TerainAssets>()
-            .add_systems(Startup, load_assets)
+            .add_systems(PreStartup, load_assets)
             ;
     }
 }
@@ -31,7 +31,7 @@ fn load_assets(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>
 ) {
     // Load Block texture
-    let stone_texture = asset_server.load("assets/Terrain/Terrain (16x16).png");
+    let stone_texture = asset_server.load("Terrain/Terrain (16x16).png");
     let stone_atlas_layout = TextureAtlasLayout::from_grid(
             Vec2::splat(48.),
             1, 
