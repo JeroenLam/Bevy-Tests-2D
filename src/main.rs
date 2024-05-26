@@ -5,7 +5,6 @@ mod sprite_animations;
 mod collision;
 mod terain_asset_loader;
 mod platform;
-mod schedule;
 
 use character_asset_loader::CharacterAssetLoaderPlugin;
 use bevy::prelude::*;
