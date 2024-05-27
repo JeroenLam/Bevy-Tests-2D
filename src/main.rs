@@ -12,6 +12,7 @@ use camera::OwnCameraPlugin;
 use collision::CollisionPlugin;
 use platform::PlatformPlugin;
 use player::PlayerPlugin;
+use sprite_animations::SpriteAnimationPlugin;
 
 fn main() {
     App::new()
@@ -21,5 +22,6 @@ fn main() {
         .add_plugins(CharacterAssetLoaderPlugin)
         .add_plugins(CollisionPlugin)
         .add_plugins(PlatformPlugin)
+        .add_plugins(SpriteAnimationPlugin)
         .run();
 }

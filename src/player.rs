@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::character_asset_loader::{AnimationType, PlayerAnimationAssets};
 use crate::collision::{check_hit, Grounded, HitBox};
-use crate::sprite_animations::{AnimationIndices, AnimationTimer, SpriteAnimationPlugin};
+use crate::sprite_animations::AnimationTimer;
 
 const MOVE_SPEED: f32 = 100.;
 const FALL_SPEED: f32 = 98.0;
@@ -13,10 +13,8 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_spawn_player)
             .add_systems(Update, move_player)
-            .add_systems(Update, change_player_animation)
             .add_systems(Update, player_jump)
             .add_systems(Update, player_fall)
-            .add_plugins(SpriteAnimationPlugin)
             ;
     }
 }
@@ -95,78 +93,8 @@ fn move_player(
 
 }
 
-
-fn change_player_animation(
-    mut player_q: Query<(&mut Handle<Image>, &mut AnimationIndices, &mut TextureAtlas, &mut Sprite), With<Player>>,
-    player_jump: Query<(Option<&Jump>, &Grounded), With<Player>>,
-    input: Res<ButtonInput<KeyCode>>,
-    animations: Res<PlayerAnimationAssets>,
-) {
-    let Ok((
-        mut texture,
-        mut animation_indices,
-        mut texture_atlas,
-        mut sprite,
-    )) = player_q.get_single_mut() else {return;};
-
-    let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
-    let left_start  = input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_start = input.any_just_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
-    let left_end  = input.any_just_released([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_end = input.any_just_released([KeyCode::KeyD, KeyCode::ArrowRight]);
-
-    // Flip sprite if needed
-    if right_start {
-        sprite.flip_x = false;
-    } else if left_start {
-        sprite.flip_x = true;
-    } else if left_end && right_hold {
-        sprite.flip_x = false;
-    } else if right_end && left_hold {
-        sprite.flip_x = true;
-    }
-
-    let (jump, grounded) = player_jump.single();
-    // Check if the player is in the air
-    let animation_type = 
-        //Jumping if jump
-        if jump.is_some() {
-            AnimationType::Jump
-        //Falling if no on ground
-        } else if !grounded.0 {
-            AnimationType::Fall
-        // if any move keys pressed set run sprite
-        } else if left_start || right_start {
-            AnimationType::Run
-        } else if (left_end && !right_hold) || (right_end && !left_hold) {
-            AnimationType::Idle
-        } else {
-            return;
-        };
-
-    let Some((
-        layout_handle_new, 
-        texture_new, 
-        animation_indices_new
-        )) = animations.map.get(&animation_type)
-            else { 
-                error!("Failed to find animation durring update: {:?}", animation_type); 
-                return; 
-            };
-
-    *texture = texture_new.clone();
-    *animation_indices = *animation_indices_new;
-    *texture_atlas = TextureAtlas {
-        layout: layout_handle_new.clone(),
-        index: 0,
-    };
-    
-}
-
-
 #[derive(Component, Debug)]
-struct Jump(f32);
+pub struct Jump(f32);
 
 fn player_jump(
     mut commands: Commands, 
