@@ -1,4 +1,7 @@
 use bevy::prelude::*;
+use leafwing_input_manager::action_state::ActionState;
+use leafwing_input_manager::input_map::InputMap;
+use leafwing_input_manager::{Actionlike, InputManagerBundle};
 
 use crate::character_asset_loader::{AnimationType, PlayerAnimationAssets};
 use crate::collision::{check_hit, Grounded, HitBox};
@@ -51,22 +54,48 @@ fn setup_spawn_player(
         Player,
         Grounded(false),
         HitBox(Vec2::splat(32.)),
+        InputManagerBundle {
+            input_map: PlayerInput::player_one(),
+            ..default()
+        }
     ));
 }
 
 
+#[derive(Actionlike, Clone, Copy, PartialEq, Eq, Hash, Reflect, Debug)]
+pub enum PlayerInput {
+    Left, 
+    Right, 
+    Jump
+}
+
+impl PlayerInput {
+    pub fn player_one() -> InputMap<PlayerInput> {
+        let mut map = InputMap::default();
+        map.insert_multiple([
+            (PlayerInput::Left, KeyCode::KeyA),
+            (PlayerInput::Left, KeyCode::ArrowLeft),
+            (PlayerInput::Right, KeyCode::KeyD),
+            (PlayerInput::Right, KeyCode::ArrowRight),
+            (PlayerInput::Jump, KeyCode::KeyW),
+            (PlayerInput::Jump, KeyCode::ArrowUp),
+            (PlayerInput::Jump, KeyCode::Space),
+        ]);
+        map
+    }
+}
+
 
 fn move_player(
-    mut player: Query<(Entity, &mut Transform, &Grounded, &HitBox), With<Player>>,
+    mut commands: Commands, 
+    mut player: Query<(Entity, &mut Transform, &Grounded, &HitBox, &ActionState<PlayerInput>), With<Player>>,
     hitboxs: Query<(&HitBox, &Transform), Without<Player>>,
     time: Res<Time>,
-    input: Res<ButtonInput<KeyCode>>,
-    mut commands: Commands, 
 ) {
-    let Ok((player, mut transform, grounded, &p_hitbox)) = player.get_single_mut() else {return;};
+    let Ok((player, mut transform, grounded, &p_hitbox, input)) = player.get_single_mut() else {return;};
 
-    let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let left_hold  = input.pressed(&PlayerInput::Left);
+    let right_hold = input.pressed(&PlayerInput::Right);
     
     let movement = if left_hold && right_hold {
         return;
@@ -78,8 +107,7 @@ fn move_player(
         return;
     };
 
-    let up_start = input.any_just_pressed([KeyCode::KeyW, KeyCode::ArrowUp, KeyCode::Space]);
-    // let down  = input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+    let up_start = input.just_pressed(&PlayerInput::Jump);
     if up_start && grounded.0 {
         commands.entity(player).insert(Jump(100.));
         return;
