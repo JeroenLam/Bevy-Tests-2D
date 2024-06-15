@@ -8,7 +8,7 @@ use crate::collision::{check_hit, Grounded, HitBox};
 use crate::sprite_animations::AnimationTimer;
 
 const MOVE_SPEED: f32 = 100.;
-const FALL_SPEED: f32 = 98.0;
+const FALL_SPEED: f32 = 150.;
 
 pub struct PlayerPlugin;
 
@@ -23,7 +23,15 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component, Debug)]
-pub struct Player;
+pub struct Player {
+    has_double_jump: bool,
+}
+
+impl Player {
+    pub fn new() -> Self {
+        Self { has_double_jump: true }
+    }
+}
 
 
 fn setup_spawn_player(
@@ -51,7 +59,7 @@ fn setup_spawn_player(
         },
         animation_indices.clone(),
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-        Player,
+        Player::new(),
         Grounded(false),
         HitBox(Vec2::splat(32.)),
         InputManagerBundle {
@@ -94,6 +102,13 @@ fn move_player(
 ) {
     let Ok((player, mut transform, grounded, &p_hitbox, input)) = player.get_single_mut() else {return;};
 
+    // Handle Jumping
+    let up_start = input.just_pressed(&PlayerInput::Jump);
+    if up_start {
+        commands.entity(player).insert(Jump::new(100.));
+    }
+
+    // Handle horizontal movement
     let left_hold  = input.pressed(&PlayerInput::Left);
     let right_hold = input.pressed(&PlayerInput::Right);
     
@@ -107,12 +122,7 @@ fn move_player(
         return;
     };
 
-    let up_start = input.just_pressed(&PlayerInput::Jump);
-    if up_start && grounded.0 {
-        commands.entity(player).insert(Jump(100.));
-        return;
-    }
-
+    // Update position
     let new_pos = transform.translation + Vec3::X * movement;
     for (&hitbox, offset) in &hitboxs {
         if check_hit(p_hitbox, new_pos, hitbox, offset.translation) {return;}
@@ -122,7 +132,15 @@ fn move_player(
 }
 
 #[derive(Component, Debug)]
-pub struct Jump(f32);
+pub struct Jump {
+    height: f32,
+}
+
+impl Jump {
+    pub fn new(height: f32) -> Self {
+        Self { height, }
+    }
+}
 
 fn player_jump(
     mut commands: Commands, 
@@ -130,10 +148,10 @@ fn player_jump(
     mut player: Query<(Entity, &mut Transform, &mut Jump), With<Player>>,
 ) {
     let Ok((player, mut transform, mut jump)) = player.get_single_mut() else {return;};
-    let jump_power = (time.delta_seconds() * FALL_SPEED * 2.).min(jump.0);
-    jump.0 -= jump_power;
+    let jump_power = (time.delta_seconds() * FALL_SPEED * 2.).min(jump.height);
+    jump.height -= jump_power;
     transform.translation.y += jump_power; 
-    if jump.0 == 0. {
+    if jump.height == 0. {
         commands.entity(player).remove::<Jump>();
     }
 }

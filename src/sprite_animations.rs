@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use leafwing_input_manager::action_state::ActionState;
 
-use crate::{character_asset_loader::{AnimationType, PlayerAnimationAssets}, collision::Grounded, player::{Jump, Player}};
+use crate::{character_asset_loader::{AnimationType, PlayerAnimationAssets}, collision::Grounded, player::{Jump, Player, PlayerInput}};
 
 pub struct SpriteAnimationPlugin;
 
@@ -47,9 +48,8 @@ fn animate_sprite(
 
 
 fn change_player_animation(
-    mut player_q: Query<(&mut Handle<Image>, &mut AnimationIndices, &mut TextureAtlas, &mut Sprite), With<Player>>,
+    mut player_q: Query<(&mut Handle<Image>, &mut AnimationIndices, &mut TextureAtlas, &mut Sprite, &ActionState<PlayerInput>), With<Player>>,
     player_jump: Query<(Option<&Jump>, &Grounded), With<Player>>,
-    input: Res<ButtonInput<KeyCode>>,
     animations: Res<PlayerAnimationAssets>,
 ) {
     let Ok((
@@ -57,14 +57,15 @@ fn change_player_animation(
         mut animation_indices,
         mut texture_atlas,
         mut sprite,
+        input,
     )) = player_q.get_single_mut() else {return;};
 
-    let left_hold  = input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_hold = input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
-    let left_start  = input.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_start = input.any_just_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
-    let left_end  = input.any_just_released([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right_end = input.any_just_released([KeyCode::KeyD, KeyCode::ArrowRight]);
+    let left_hold  = input.pressed(&PlayerInput::Left);
+    let right_hold = input.pressed(&PlayerInput::Right);
+    let left_start  = input.just_pressed(&PlayerInput::Left);
+    let right_start = input.just_pressed(&PlayerInput::Right);
+    let left_end  = input.just_released(&PlayerInput::Left);
+    let right_end = input.just_released(&PlayerInput::Right);
 
     // Flip sprite if needed
     if right_start {
@@ -77,11 +78,11 @@ fn change_player_animation(
         sprite.flip_x = true;
     }
 
-    let (jump, grounded) = player_jump.single();
+    let (has_jump, grounded) = player_jump.single();
     // Check if the player is in the air
     let animation_type = 
         //Jumping if jump
-        if jump.is_some() {
+        if has_jump.is_some() {
             AnimationType::Jump
         //Falling if no on ground
         } else if !grounded.0 {
