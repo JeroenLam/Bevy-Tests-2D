@@ -1,27 +1,25 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use leafwing_input_manager::action_state::ActionState;
-use leafwing_input_manager::input_map::InputMap;
-use leafwing_input_manager::plugin::InputManagerPlugin;
-use leafwing_input_manager::{Actionlike, InputManagerBundle};
+use leafwing_input_manager::InputManagerBundle;
 
 use crate::asset_loader_player::{AnimationType, AssetLoaderPlayerPlugin, PlayerAnimationAssets};
+use crate::player_input::{PlayerInput, PlayerInputPlugin};
 use crate::sprite_animations::{AnimationIndices, AnimationTimer};
 
-const MOVE_SPEED: f32 = 200.0;
+const MOVE_SPEED: f32 = 400.0;
 const JUMP_SPEED: f32 = 500.0;
+const COLLISION_H2: f32 = 15.0;
+const COLLISION_W2: f32 = 10.0;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_player)
-            .add_systems(Update, (
-                player_input,
-                update_grounded_status,
-            ))
-            .add_plugins(InputManagerPlugin::<PlayerInput>::default())
-            .add_plugins(AssetLoaderPlayerPlugin);
+            .add_systems(Update, (player_input, update_grounded_status))
+            .add_plugins(AssetLoaderPlayerPlugin)
+            .add_plugins(PlayerInputPlugin);
     }
 }
 
@@ -39,62 +37,23 @@ impl Grounded {
     }
 }
 
-#[derive(Actionlike, Clone, Copy, PartialEq, Eq, Hash, Reflect, Debug)]
-enum PlayerInput {
-    MoveLeft,
-    MoveRight,
-    MoveUp,
-    MoveDown,
-    Jump,
-    Action,
-}
-
-impl PlayerInput {
-    pub fn player_one_keyboard() -> InputMap<PlayerInput> {
-        let mut map = InputMap::default();
-        map.insert_multiple([
-            // ============ Keyboard ============ 
-            // Arrow movement
-            (PlayerInput::MoveUp, KeyCode::ArrowUp),
-            (PlayerInput::MoveDown, KeyCode::ArrowDown),
-            (PlayerInput::MoveLeft, KeyCode::ArrowLeft),
-            (PlayerInput::MoveRight, KeyCode::ArrowRight),
-            // WASD movement
-            (PlayerInput::MoveUp, KeyCode::KeyW),
-            (PlayerInput::MoveDown, KeyCode::KeyS),
-            (PlayerInput::MoveLeft, KeyCode::KeyA),
-            (PlayerInput::MoveRight, KeyCode::KeyD),
-            // Jumping 
-            (PlayerInput::Jump, KeyCode::Space),
-        ]);
-        map
-    }
-    pub fn player_one_controller() -> InputMap<PlayerInput> {
-        let mut map = InputMap::default();
-        map.insert_multiple([
-            // ============ Controller ============ 
-            // Movement
-            (PlayerInput::MoveLeft, GamepadButtonType::DPadLeft),
-            (PlayerInput::MoveRight, GamepadButtonType::DPadRight),
-            (PlayerInput::MoveUp, GamepadButtonType::DPadUp),
-            (PlayerInput::MoveDown, GamepadButtonType::DPadDown),
-            // Jumping
-            (PlayerInput::Jump, GamepadButtonType::South),
-        ]);
-        map
-    }
-}
-
 #[derive(Component)]
-pub struct CurrentAnimation(AnimationType);
+pub struct CurrentAnimation {
+    animation_type: AnimationType,
+}
 
-fn spawn_player(
-    mut commands: Commands,
-    player_animation_assets: Res<PlayerAnimationAssets>,
-) {
+impl CurrentAnimation {
+    pub fn new(animation_type: AnimationType) -> Self {
+        Self { animation_type }
+    }
+}
+
+fn spawn_player(mut commands: Commands, player_animation_assets: Res<PlayerAnimationAssets>) {
     // HashMap<AnimationType, (Handle<TextureAtlasLayout>, Handle<Image>, AnimationIndices)>,
-    let (idle_atlas_layout, idle_texture, idle_animation_indices) = player_animation_assets.map.get(&AnimationType::Idle).unwrap();
-
+    let (idle_atlas_layout, idle_texture, idle_animation_indices) = player_animation_assets
+        .map
+        .get(&AnimationType::Idle)
+        .unwrap();
 
     commands.spawn((
         SpriteSheetBundle {
@@ -110,11 +69,11 @@ fn spawn_player(
         *idle_animation_indices,
         Player,
         RigidBody::Dynamic,
-        Collider::cuboid(15.0, 15.0),
+        Collider::cuboid(COLLISION_W2, COLLISION_H2),
         Velocity::default(),
         LockedAxes::ROTATION_LOCKED,
         Grounded::new(false),
-        CurrentAnimation(AnimationType::Idle),
+        CurrentAnimation::new(AnimationType::Idle),
         InputManagerBundle {
             input_map: PlayerInput::player_one_keyboard(),
             ..default()
@@ -123,69 +82,119 @@ fn spawn_player(
 }
 
 fn player_input(
-    mut query: Query<(&mut Velocity, &Grounded, &ActionState<PlayerInput>, &mut TextureAtlas, &mut Handle<Image>, &mut AnimationIndices, &mut CurrentAnimation), With<Player>>,
+    mut query_movement: Query<(&mut Velocity, &Grounded, &ActionState<PlayerInput>), With<Player>>,
+    mut query_texture: Query<
+        (
+            &mut TextureAtlas,
+            &mut Handle<Image>,
+            &mut AnimationIndices,
+            &mut CurrentAnimation,
+            &mut Sprite,
+        ),
+        With<Player>,
+    >,
     player_animation_assets: Res<PlayerAnimationAssets>,
 ) {
-    for (mut q_velocity, q_grounded, q_input, mut q_texture_atlas, mut q_texture, mut q_animation_indices, mut q_current_animation) in query.iter_mut() {
-        let mut direction = Vec2::ZERO;
-        let mut new_animation = q_current_animation.0.clone();
+    // Parse player movement variables
+    let Ok((mut q_velocity, q_grounded, q_input)) = query_movement.get_single_mut() else {
+        return;
+    };
+    // Parse player texture variables
+    let Ok((
+        mut q_texture_atlas,
+        mut q_texture,
+        mut q_animation_indices,
+        mut q_current_animation,
+        mut q_sprite,
+    )) = query_texture.get_single_mut()
+    else {
+        return;
+    };
 
-        if q_input.pressed(&PlayerInput::MoveLeft) {
-            direction.x -= 1.0;
-            new_animation = AnimationType::Run;
-        }
+    let mut direction = Vec2::ZERO;
+    let mut new_animation = q_current_animation.animation_type.clone();
 
-        if q_input.pressed(&PlayerInput::MoveRight) {
-            direction.x += 1.0;
-            new_animation = AnimationType::Run;
-        }
+    // Process left/right input
+    if q_input.pressed(&PlayerInput::MoveLeft) {
+        direction.x -= 1.0;
+        new_animation = AnimationType::Run;
+        q_sprite.flip_x = true;
+    }
+    if q_input.pressed(&PlayerInput::MoveRight) {
+        direction.x += 1.0;
+        new_animation = AnimationType::Run;
+        q_sprite.flip_x = false;
+    }
+    if q_input.pressed(&PlayerInput::MoveLeft) && q_input.pressed(&PlayerInput::MoveRight) {
+        direction.x = 0.0;
+    }
+    if direction.x == 0.0 {
+        new_animation = AnimationType::Idle;
+    }
 
-        if direction.x == 0.0 {
-            new_animation = AnimationType::Idle;
-        }
+    // Process sprint input
+    if q_input.pressed(&PlayerInput::Run) {
+        direction.x *= 1.5;
+    }
 
-        q_velocity.linvel.x = direction.x * MOVE_SPEED;
+    // Set horizontal movement
+    q_velocity.linvel.x = direction.x * MOVE_SPEED;
 
-        if q_grounded.is_grounded && q_input.just_pressed(&PlayerInput::Jump) {
-            q_velocity.linvel.y = JUMP_SPEED;
+    // Set vertical movement
+    if q_grounded.is_grounded && q_input.just_pressed(&PlayerInput::Jump) {
+        q_velocity.linvel.y = JUMP_SPEED;
+    }
+
+    // Check if the player is jumping / falling
+    if q_grounded.is_grounded == false {
+        if q_velocity.linvel.y > 0.1 {
             new_animation = AnimationType::Jump;
         }
+        if q_velocity.linvel.y < -0.1 {
+            new_animation = AnimationType::Fall;
+        }
+    }
 
-        // Update the player's animation if it has changed
-        if new_animation != q_current_animation.0 {
-            if let Some((atlas_handle, texture_handle, indices)) = player_animation_assets.map.get(&new_animation) {
-                q_texture_atlas.layout = atlas_handle.clone();
-                q_texture = texture_handle.clone();
-                *q_animation_indices = *indices;
-                q_current_animation.0 = new_animation;
-            }
+    println!("v_y : {}", q_velocity.linvel.y);
+
+    // Update the player's animation if it has changed
+    if new_animation != q_current_animation.animation_type {
+        if let Some((layout_handle_new, texture_handle_new, animation_indices_new)) =
+            player_animation_assets.map.get(&new_animation)
+        {
+            *q_texture_atlas = TextureAtlas {
+                layout: layout_handle_new.clone(),
+                index: 0,
+            };
+            *q_texture = texture_handle_new.clone();
+            *q_animation_indices = *animation_indices_new;
+            q_current_animation.animation_type = new_animation;
         }
     }
 }
 
 fn update_grounded_status(
-    mut commands: Commands,
     rapier_context: Res<RapierContext>,
-    mut query: Query<(Entity, &Transform, &mut Grounded), With<Player>>,
+    mut query: Query<(&Transform, &mut Grounded), With<Player>>,
 ) {
-    for (entity, transform, mut grounded) in query.iter_mut() {
-        let collider_bottom = transform.translation.y - 15.0; // Adjust based on player size
-        let ground_check_distance = 0.1;
-
-        let start_point = Vec2::new(transform.translation.x, collider_bottom);
-        let end_point = Vec2::new(transform.translation.x, collider_bottom - ground_check_distance);
+    for (transform, mut grounded) in query.iter_mut() {
+        let start_point = Vec2::new(
+            transform.translation.x,
+            transform.translation.y - COLLISION_H2 - 0.01,
+        );
+        let end_point = Vec2::new(
+            transform.translation.x,
+            transform.translation.y - COLLISION_H2 - 0.1,
+        );
 
         let hit = rapier_context.cast_ray(
             start_point,
             end_point - start_point,
             1.0,
             true,
-            QueryFilter::default()
+            QueryFilter::default(),
         );
 
         grounded.is_grounded = hit.is_some();
-
-        // Dereference `grounded` to insert the actual component, not the reference
-        commands.entity(entity).insert(*grounded);
     }
 }

@@ -1,17 +1,18 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-mod player;
-mod movement_entity;
-mod map_platforms;
-mod camera;
-mod sprite_animations;
 mod asset_loader_player;
+mod camera;
+mod map_platforms;
+mod movement_entity;
+mod player;
+mod player_input;
+mod sprite_animations;
 
-use player::PlayerPlugin;
-use movement_entity::MovementEntityPlugin;
-use map_platforms::MapPlatformsPlugin;
 use camera::CameraPlugin;
+use map_platforms::MapPlatformsPlugin;
+use movement_entity::MovementEntityPlugin;
+use player::PlayerPlugin;
 use sprite_animations::SpriteAnimationPlugin;
 
 fn main() {
