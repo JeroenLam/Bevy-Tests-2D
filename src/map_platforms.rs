@@ -115,6 +115,8 @@ fn spawn_map_platform(
             }
 
             // TODO: Implement this correctly
+            // TODO: Look at the materials resource for texture colouring
+            // TODO: Refactor the platform code to different files
             let trans_x = terrain_object.translation_x + (x * 16) as f32;
             let trans_y = terrain_object.translation_y + (y * 16) as f32;
 
