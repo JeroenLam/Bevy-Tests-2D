@@ -155,8 +155,6 @@ fn player_input(
         }
     }
 
-    println!("v_y : {}", q_velocity.linvel.y);
-
     // Update the player's animation if it has changed
     if new_animation != q_current_animation.animation_type {
         if let Some((layout_handle_new, texture_handle_new, animation_indices_new)) =
